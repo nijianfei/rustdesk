@@ -11,59 +11,13 @@ env:
   RELAY_SERVER: ${{ secrets.RELAY_SERVER }}
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y clang libxcb-composite0-dev libx11-dev libx11-xcb-dev \
-            libxcb-res0-dev libavcodec-dev libavutil-dev libavformat-dev libvpx-dev \
-            libopus-dev libxcb-randr0-dev libgtk-3-dev
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
-
-      - name: Get dependencies
-        run: |
-          cd flutter
-          flutter pub get
-
-      - name: Build Rust backend (with custom server)
-        run: |
-          export RENDEZVOUS_SERVER=${{ env.RENDEZVOUS_SERVER }}
-          export API_SERVER=${{ env.API_SERVER }}
-          export RELAY_SERVER=${{ env.RELAY_SERVER }}
-          cargo build --release
-
-      - name: Build Linux AppImage
-        run: |
-          cd flutter
-          flutter build linux --release
-          mkdir -p release
-          cp -r build/linux/x64/release/bundle/* release/
-          tar -czf rustdesk-linux.tar.gz -C release .
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rustdesk-linux
-          path: rustdesk-linux.tar.gz
-
   build-windows:
     runs-on: windows-2022
     steps:
-      - name: Checkout code
+      - name: Checkout code with submodules
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -72,7 +26,6 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
-          channel: 'stable'
 
       - name: Get dependencies
         run: |
@@ -84,6 +37,7 @@ jobs:
           set RENDEZVOUS_SERVER=${{ env.RENDEZVOUS_SERVER }}
           set API_SERVER=${{ env.API_SERVER }}
           set RELAY_SERVER=${{ env.RELAY_SERVER }}
+          set KEY=${{ env.KEY }}
           cargo build --release
 
       - name: Build Windows exe
@@ -98,41 +52,3 @@ jobs:
           name: rustdesk-windows
           path: rustdesk-windows.zip
 
-  build-macos:
-    runs-on: macos-13
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
-
-      - name: Get dependencies
-        run: |
-          cd flutter
-          flutter pub get
-
-      - name: Build Rust backend
-        run: |
-          export RENDEZVOUS_SERVER=${{ env.RENDEZVOUS_SERVER }}
-          export API_SERVER=${{ env.API_SERVER }}
-          export RELAY_SERVER=${{ env.RELAY_SERVER }}
-          cargo build --release
-
-      - name: Build macOS app
-        run: |
-          cd flutter
-          flutter build macos --release
-          ditto -c -k --keepParent build/macos/Build/Products/Release/rustdesk.app rustdesk-macos.zip
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rustdesk-macos
-          path: rustdesk-macos.zip
